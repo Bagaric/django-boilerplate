@@ -1,0 +1,9 @@
+DOMAIN=<staging_host>
+DB_ENGINE=django.db.backends.postgresql_psycopg2
+DB_NAME=<app_name>
+DB_USER=<app_name>
+DB_PASS=<app_name>
+DB_HOST=db
+DB_PORT=5432
+DJANGO_SECRET_KEY=76nmlsaxqh40hhom082kzi745gnp64cgbpfdq8ou
+HTTP_PROTOCOL=http

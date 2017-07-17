@@ -1,0 +1,6 @@
+DOMAIN=localhost
+DEBUG=True
+DB_ENGINE=django.db.backends.sqlite3
+DB_NAME=db.sqlite3
+DJANGO_SECRET_KEY=76nmlsaxqh40hhom082kzi745gnp64cgbpfdq8ou
+HTTP_PROTOCOL=http

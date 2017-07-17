@@ -1,0 +1,5 @@
+venv
+*.pyc
+src/staticfiles
+src/db.sqlite3
+src/app/local_settings.py
