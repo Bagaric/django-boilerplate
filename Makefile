@@ -13,8 +13,8 @@ help:
 	@echo "deploy-production - sync local code to production server"
 	@echo "build-production - sync local code to production server, rebuild Docker image and reload on production server"
 
-STAGING_HOST=<staging_host>
-PRODUCTION_HOST=<prod_host>
+STAGING_HOST={$staging_host}
+PRODUCTION_HOST={$prod_host}
 SSH_KEY=~/keypair1.pem
 
 build-local:
