@@ -2,10 +2,15 @@
 import sys
 import os
 import fnmatch
-from getpass import getpass
 import subprocess
+from getpass import getpass
+from time import sleep
 
+import boto3
 from github import Github
+from paramiko.client import SSHClient
+from paramiko.ssh_exception import NoValidConnectionsError
+import paramiko
 
 
 def main():
@@ -13,23 +18,24 @@ def main():
     # User prompts
     app_name = input("What is the name of your app? (snake_case): ")
     staging_host = input("Staging host or IP: ") if query_yes_no(
-        "Does your app already have a staging host?") else None
+        "Does your app already have a staging host?", default="no") else None
     prod_host = input("Prod hostname or IP: ") if query_yes_no(
-        "Does your app already have a prod host?") else None
+        "Does your app already have a prod host?", default="no") else None
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
 
-    set_variables(app_name, staging_host, prod_host)
+    # set_variables(app_name, staging_host, prod_host)
+    # cleanup()
 
     if use_git:
-        init_github(app_name)
+        git_repo_url = init_git_repo(app_name)
+        init_ec2_instance(app_name, git_repo_url)
 
-    cleanup()
 
-
-def init_github(app_name):
+def init_git_repo(app_name):
     """
     Initializes the GitHub repo for the app.
     """
+    print("Creating the GitHub repo...")
 
     github_username = input("GitHub username: ")
     github_password = getpass(prompt="GitHub password: ")
@@ -38,13 +44,81 @@ def init_github(app_name):
     user = g.get_user()
     repo = user.create_repo(to_camel_case(app_name))
 
-    return repo.ssh_url()
+    return repo.ssh_url
 
+
+def init_ec2_instance(app_name, git_repo_url):
+    """
+    Creates and runs an EC2 instance.
+    """
+    print("Creating an EC2 instance...")
+
+    ec2 = boto3.resource('ec2')
+    ec2.create_instances(
+        ImageId='ami-835b4efa',
+        InstanceType='t2.micro',
+        MinCount=1,
+        MaxCount=1,
+        KeyName='keypair1',
+        SecurityGroupIds=[
+            'sg-8c5df1f6',
+        ],
+        TagSpecifications=[
+            {
+                'ResourceType': 'instance',
+                'Tags': [
+                    {
+                        'Key': 'Name',
+                        'Value': app_name
+                    },
+                ]
+            },
+        ]
+    )
+
+    instances = ec2.instances.all()
+    for i in instances:
+        if i.tags:
+            if i.tags[0]['Value'] == app_name:
+                instance = i
+                break
+
+    print("Waiting for the EC2 instance to start... (This may take a few minutes)")
+    instance.wait_until_running()
+
+    print("SSHing into the instance...")
+    ssh = SSHClient()
+    keypair = paramiko.RSAKey.from_private_key_file("/Users/bagaricj/keypair1.pem")
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    connected = False
+    while not connected:
+        try:
+            ssh.connect(hostname=instance.public_ip_address, pkey=keypair, username="ubuntu")
+        except NoValidConnectionsError:
+            continue
+        connected = True
+
+    print("Cloning the repo on the instance...")
+    sftp = ssh.open_sftp()
+    sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
+    sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
+    ssh.exec_command("chmod 0400 ~/.ssh/id_rsa*")
+
+    channel = ssh.get_transport().open_session()
+    channel.get_pty()         # get a PTY
+    channel.invoke_shell()    # start the shell before sending commands
+    channel.send("chmod 0400 ~/.ssh/id_rsa*" + '\n')
+    channel.send("echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config" + '\n')
+    channel.send('git clone ' + git_repo_url + '\n')
+
+    ssh.close()
 
 def set_variables(app_name, staging_host, prod_host):
     """
     Sets all variables in the project.
     """
+    print("Replacing placeholder variables in files...")
 
     find_replace("app_name", app_name)
 
@@ -58,6 +132,7 @@ def cleanup():
     """
     Cleans up the directory of the setup files.
     """
+    print("Cleaning up...")
     os.remove("requirements.txt")
     os.remove("setup.py")
 
