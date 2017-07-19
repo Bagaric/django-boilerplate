@@ -13,6 +13,18 @@ from paramiko.ssh_exception import NoValidConnectionsError
 import paramiko
 
 
+FILE_LIST = [
+    './docker-compose.yml',
+    './Makefile',
+    './README.md',
+    'config/nginx/nginx.conf',
+    'config/postgres/init.sql',
+    'config/scripts/build.sh',
+    'config/scripts/deploy.sh',
+    'src/env-staging',
+]
+
+
 def main():
 
     # User prompts
@@ -24,11 +36,11 @@ def main():
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
 
     set_variables(app_name, staging_host, prod_host)
-    # cleanup()
+    cleanup()
 
-    # if use_git:
-    #     git_repo_url = init_git_repo(app_name)
-    #     # init_ec2_instance(app_name, git_repo_url)
+    if use_git:
+        git_repo_url = init_git_repo(app_name)
+        init_ec2_instance(app_name, git_repo_url)
 
 
 def init_git_repo(app_name):
@@ -122,10 +134,10 @@ def set_variables(app_name, staging_host, prod_host):
 
     find_replace("app_name", app_name)
 
-    # if staging_host:
-    #     find_replace("staging_host", staging_host)
-    # if prod_host:
-    #     find_replace("prod_host", prod_host)
+    if staging_host:
+        find_replace("staging_host", staging_host)
+    if prod_host:
+        find_replace("prod_host", prod_host)
 
 
 def cleanup():
@@ -133,8 +145,8 @@ def cleanup():
     Cleans up the directory of the setup files.
     """
     print("Cleaning up...")
-    os.remove("requirements.txt")
-    os.remove("setup.py")
+    os.remove("./requirements.txt")
+    os.remove("./setup.py")
 
 
 def run_command(bash_cmd):
@@ -143,22 +155,17 @@ def run_command(bash_cmd):
     return error
 
 
-def find_replace(keyword, value):
+def find_replace(keyword, value, files=FILE_LIST):
 
     find = "{$" + keyword + "}"
 
-    for path, dirs, files in os.walk(os.path.abspath(".")):
-        for filename in fnmatch.filter(files, "*.*"):
-            filepath = os.path.join(path, filename)
-            with open(filepath) as f:
-                try:
-                    file_content = f.read()
-                except UnicodeDecodeError as e:
-                    import pdb; pdb.set_trace()  # breakpoint ea5ffb5a //
-                    
-            file_content = file_content.replace(find, value)
-            with open(filepath, "w") as f:
-                f.write(file_content)
+    for filename in files:
+        with open(filename, "r") as f:
+            file_content = f.read()
+
+        file_content = file_content.replace(find, value)
+        with open(filename, "w") as f:
+            f.write(file_content)
 
 
 def query_yes_no(question, default="yes"):

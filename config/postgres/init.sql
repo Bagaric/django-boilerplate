@@ -1,3 +1,3 @@
-CREATE USER testapp;
-CREATE DATABASE testapp;
-GRANT ALL PRIVILEGES ON DATABASE testapp TO testapp;
+CREATE USER {$app_name};
+CREATE DATABASE {$app_name};
+GRANT ALL PRIVILEGES ON DATABASE {$app_name} TO {$app_name};
