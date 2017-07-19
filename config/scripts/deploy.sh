@@ -1,5 +1,5 @@
 #!/bin/sh
-cd ~/{$app_name}
+cd ~/testapp
 . venv/bin/activate
 git reset --hard HEAD
 git pull origin master

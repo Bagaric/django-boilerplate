@@ -23,12 +23,12 @@ def main():
         "Does your app already have a prod host?", default="no") else None
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
 
-    # set_variables(app_name, staging_host, prod_host)
+    set_variables(app_name, staging_host, prod_host)
     # cleanup()
 
-    if use_git:
-        git_repo_url = init_git_repo(app_name)
-        init_ec2_instance(app_name, git_repo_url)
+    # if use_git:
+    #     git_repo_url = init_git_repo(app_name)
+    #     # init_ec2_instance(app_name, git_repo_url)
 
 
 def init_git_repo(app_name):
@@ -122,10 +122,10 @@ def set_variables(app_name, staging_host, prod_host):
 
     find_replace("app_name", app_name)
 
-    if staging_host:
-        find_replace("staging_host", staging_host)
-    if prod_host:
-        find_replace("prod_host", prod_host)
+    # if staging_host:
+    #     find_replace("staging_host", staging_host)
+    # if prod_host:
+    #     find_replace("prod_host", prod_host)
 
 
 def cleanup():
@@ -151,10 +151,14 @@ def find_replace(keyword, value):
         for filename in fnmatch.filter(files, "*.*"):
             filepath = os.path.join(path, filename)
             with open(filepath) as f:
-                s = f.read()
-            s = s.replace(find, value)
+                try:
+                    file_content = f.read()
+                except UnicodeDecodeError as e:
+                    import pdb; pdb.set_trace()  # breakpoint ea5ffb5a //
+                    
+            file_content = file_content.replace(find, value)
             with open(filepath, "w") as f:
-                f.write(s)
+                f.write(file_content)
 
 
 def query_yes_no(question, default="yes"):

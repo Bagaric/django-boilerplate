@@ -2,12 +2,12 @@ version: '2'
 services:
   # letsencrypt:
   #   image: debian:jessie-backports
-  #   container_name: letsencrypt-app_name
+  #   container_name: letsencrypt-{?app_name}
   #   depends_on: nginx
 
   nginx:
     image: nginx:latest
-    container_name: nginx-app_name
+    container_name: nginx-{?app_name}
     ports:
       - "80:8000"
       #- "443:443"
@@ -20,7 +20,7 @@ services:
 
   web:
     build: .
-    container_name: app_name
+    container_name: {?app_name}
     entrypoint: /docker-entrypoint.sh
     env_file: 
       - ./src/env-staging
@@ -34,4 +34,4 @@ services:
 
   db:
     build: ./config/postgres/
-    container_name: postgres-app_name
+    container_name: postgres-{?app_name}

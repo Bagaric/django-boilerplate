@@ -1,4 +1,4 @@
-# <app_name>
+# {?app_name}
 
 Deployment instructions and notes
 
