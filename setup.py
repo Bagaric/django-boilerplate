@@ -56,14 +56,12 @@ def init_git_repo(app_name):
             github_password = getpass(prompt="GitHub password: ")
 
             github = Github(github_username, github_password)
+            user = github.get_user()
+            repo = user.create_repo(to_camel_case(app_name))
         except BadCredentialsException:
             print("Wrong username/password. Try again.")
         else:
-            print("Logging in to Github...")
             break
-
-    user = github.get_user()
-    repo = user.create_repo(to_camel_case(app_name))
 
     return repo.ssh_url
 
