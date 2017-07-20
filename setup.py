@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 import sys
 import os
-import fnmatch
 import subprocess
 from getpass import getpass
 from time import sleep
 
 import boto3
 from github import Github
+from github.GithubException import BadCredentialsException
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import NoValidConnectionsError
 import paramiko
 
-
+"""
+List of files that contains project variables.
+"""
 FILE_LIST = [
     './docker-compose.yml',
     './Makefile',
@@ -27,7 +29,6 @@ FILE_LIST = [
 
 def main():
 
-    # User prompts
     app_name = input("What is the name of your app? (snake_case): ")
     staging_host = input("Staging host or IP: ") if query_yes_no(
         "Does your app already have a staging host?", default="no") else None
@@ -49,11 +50,19 @@ def init_git_repo(app_name):
     """
     print("Creating the GitHub repo...")
 
-    github_username = input("GitHub username: ")
-    github_password = getpass(prompt="GitHub password: ")
+    while True:
+        try:
+            github_username = input("GitHub username: ")
+            github_password = getpass(prompt="GitHub password: ")
 
-    g = Github(github_username, github_password)
-    user = g.get_user()
+            github = Github(github_username, github_password)
+        except BadCredentialsException:
+            print("Wrong username/password. Try again.")
+        else:
+            print("Logging in to Github...")
+            break
+
+    user = github.get_user()
     repo = user.create_repo(to_camel_case(app_name))
 
     return repo.ssh_url
@@ -100,13 +109,15 @@ def init_ec2_instance(app_name, git_repo_url):
 
     print("SSHing into the instance...")
     ssh = SSHClient()
-    keypair = paramiko.RSAKey.from_private_key_file("/Users/bagaricj/keypair1.pem")
+    keypair = paramiko.RSAKey.from_private_key_file(
+        "/Users/bagaricj/keypair1.pem")
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     connected = False
     while not connected:
         try:
-            ssh.connect(hostname=instance.public_ip_address, pkey=keypair, username="ubuntu")
+            ssh.connect(hostname=instance.public_ip_address,
+                        pkey=keypair, username="ubuntu")
         except NoValidConnectionsError:
             continue
         connected = True
@@ -121,10 +132,12 @@ def init_ec2_instance(app_name, git_repo_url):
     channel.get_pty()         # get a PTY
     channel.invoke_shell()    # start the shell before sending commands
     channel.send("chmod 0400 ~/.ssh/id_rsa*" + '\n')
-    channel.send("echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config" + '\n')
+    channel.send(
+        "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config" + '\n')
     channel.send('git clone ' + git_repo_url + '\n')
 
     ssh.close()
+
 
 def set_variables(app_name, staging_host, prod_host):
     """
