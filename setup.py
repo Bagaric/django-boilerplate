@@ -43,6 +43,8 @@ def main():
         git_repo_url = init_git_repo(app_name)
         init_ec2_instance(app_name, git_repo_url)
 
+    print("Finished.")
+
 
 def init_git_repo(app_name):
     """
@@ -120,7 +122,7 @@ def init_ec2_instance(app_name, git_repo_url):
             continue
         connected = True
 
-    print("Cloning the repo on the instance...")
+    print("Copying necessary files to the instance...")
     sftp = ssh.open_sftp()
     sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
     sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
@@ -129,9 +131,9 @@ def init_ec2_instance(app_name, git_repo_url):
     channel = ssh.get_transport().open_session()
     channel.get_pty()         # get a PTY
     channel.invoke_shell()    # start the shell before sending commands
-    channel.send("chmod 0400 ~/.ssh/id_rsa*" + '\n')
-    channel.send(
-        "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config" + '\n')
+    channel.send("echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config" + '\n')
+
+    print("Cloning the repo on the instance...")
     channel.send('git clone ' + git_repo_url + '\n')
 
     ssh.close()
