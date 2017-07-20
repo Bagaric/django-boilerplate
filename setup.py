@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
-import subprocess
+from subprocess import call
 from getpass import getpass
 from time import sleep
 
@@ -37,7 +37,6 @@ def main():
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
 
     set_variables(app_name, staging_host, prod_host)
-    cleanup()
 
     if use_git:
         git_repo_url = init_git_repo(app_name)
@@ -64,6 +63,19 @@ def init_git_repo(app_name):
             print("Wrong username/password. Try again.")
         else:
             break
+
+    commands = """mkdir ../{0}
+rsync -av --exclude='venv' --exclude='requirements.txt' --exclude='setup.py' * ../{0}
+git init
+git add -A
+git commit -m 'Initial commit'
+git remote add origin {1}
+git push -u origin master""".format(app_name, repo.ssh_url)
+
+    for command in commands.split('\n'):
+        if command == "git init":
+            os.chdir(os.path.dirname(os.getcwd()) + "/" + app_name)
+        call(command, shell=True)
 
     return repo.ssh_url
 
@@ -147,21 +159,6 @@ def set_variables(app_name, staging_host, prod_host):
         find_replace("staging_host", staging_host)
     if prod_host:
         find_replace("prod_host", prod_host)
-
-
-def cleanup():
-    """
-    Cleans up the directory of the setup files.
-    """
-    print("Cleaning up...")
-    os.remove("./requirements.txt")
-    os.remove("./setup.py")
-
-
-def run_command(bash_cmd):
-    process = subprocess.Popen(bash_cmd.split(), stdout=subprocess.PIPE)
-    output, error = process.communicate()
-    return error
 
 
 def find_replace(keyword, value, files=FILE_LIST):
