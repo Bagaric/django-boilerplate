@@ -135,6 +135,28 @@ def init_ec2_instance(app_name, git_repo_url):
         "Waiting for the EC2 instance to start... (This may take a few minutes)")
     instance.wait_until_running()
 
+
+    ssh = open_ssh_conn(instance)
+    logger.info("Copying necessary files to the instance...")
+    sftp = ssh.open_sftp()
+    sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
+    sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
+    run_command(ssh, "chmod 0400 ~/.ssh/id_rsa*")
+    run_command(ssh, "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
+    run_command(ssh, "git clone " + git_repo_url, "Cloning the repo on the instance...")
+    run_command(ssh, "sudo apt-get update && sudo apt install virtualenv make linux-image-extra-virtual apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo apt-key fingerprint 0EBFCD88 && sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo groupadd docker && sudo usermod -aG docker $USER", "Installing dependencies...")
+    ssh.close()
+
+    ssh = open_ssh_conn(instance)
+    run_command(ssh, "virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)), "Creating a virtualenv")
+    run_command(ssh, "cd ~/{0} && . venv/bin/activate && cd config/scripts/ && sh build.sh".format(to_camel_case(app_name)), "Running build.sh...")
+    ssh.close()
+
+    return instance.public_ip_address
+
+
+def open_ssh_conn(instance):
+
     logger.info("SSHing into the instance...")
     ssh = SSHClient()
     keypair = paramiko.RSAKey.from_private_key_file(
@@ -158,22 +180,7 @@ def init_ec2_instance(app_name, git_repo_url):
 
         connected = True
 
-    logger.info("Copying necessary files to the instance...")
-    sftp = ssh.open_sftp()
-    sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
-    sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
-    
-    run_command(ssh, "chmod 0400 ~/.ssh/id_rsa*")
-    run_command(ssh, "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
-    run_command(ssh, "git clone " + git_repo_url, "Cloning the repo on the instance...")
-    run_command(ssh, "sudo apt install virtualenv -y".format(to_camel_case(app_name)), "Installing virtualenv...")
-    run_command(ssh, "virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)), "Creating a virtualenv")
-    run_command(ssh, "cd ~/{0} && . venv/bin/activate && cd config/scripts/ && sh build.sh".format(to_camel_case(app_name)), "Running build.sh...")
-
-    ssh.close()
-
-    return instance.public_ip_address
-
+    return ssh
 
 def run_command(ssh, cmd, description="Running a command"):
     logger.info(description)
@@ -193,8 +200,8 @@ def set_variables(app_name, staging_host, prod_host):
     find_replace("app_name", app_name if app_name else "app_name")
     find_replace("app_name_camelcase", to_camel_case(
         app_name) if app_name else "AppName")
-    find_replace("staging_host", staging_host if staging_host else "")
-    find_replace("prod_host", prod_host if prod_host else "")
+    find_replace("staging_host", staging_host if staging_host else "examplestaging.com")
+    find_replace("prod_host", prod_host if prod_host else "exampleprod.com")
 
 
 def find_replace(keyword, value, files=FILE_LIST):
