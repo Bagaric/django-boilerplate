@@ -1,6 +1,6 @@
 venv
 *.pyc
-src/staticfiles
+static
 src/db.sqlite3
 src/app/local_settings.py
 setup.log

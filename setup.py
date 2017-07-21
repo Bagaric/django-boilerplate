@@ -29,7 +29,8 @@ FILE_LIST = [
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 handler = logging.FileHandler('setup.log')
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -130,7 +131,8 @@ def init_ec2_instance(app_name, git_repo_url):
                 instance = i
                 break
 
-    logger.info("Waiting for the EC2 instance to start... (This may take a few minutes)")
+    logger.info(
+        "Waiting for the EC2 instance to start... (This may take a few minutes)")
     instance.wait_until_running()
 
     logger.info("SSHing into the instance...")
@@ -142,7 +144,8 @@ def init_ec2_instance(app_name, git_repo_url):
     counter, connected = 0, False
     while not connected:
         counter += 1
-        logger.info("Trying to connect to the instance... Try #{}".format(counter))
+        logger.info(
+            "Trying to connect to the instance... Try #{}".format(counter))
         try:
             ssh.connect(hostname=instance.public_ip_address,
                         pkey=keypair, username="ubuntu")
@@ -159,20 +162,26 @@ def init_ec2_instance(app_name, git_repo_url):
     sftp = ssh.open_sftp()
     sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
     sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
-    ssh.exec_command("chmod 0400 ~/.ssh/id_rsa*")
-    ssh.exec_command("echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
-
-    logger.info("Cloning the repo on the instance...")
-    ssh.exec_command("git clone " + git_repo_url)
-    logger.info("Creating a venv...")
-    ssh.exec_command("sudo apt install virtualenv -y".format(to_camel_case(app_name)))
-    ssh.exec_command("virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)))
-    logger.info("Running build.sh...")
-    ssh.exec_command("cd ~/{0} && . venv/bin/activate && cd config/scripts/ && sh build.sh".format(to_camel_case(app_name)))
+    
+    run_command(ssh, "chmod 0400 ~/.ssh/id_rsa*")
+    run_command(ssh, "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
+    run_command(ssh, "git clone " + git_repo_url, "Cloning the repo on the instance...")
+    run_command(ssh, "sudo apt install virtualenv -y".format(to_camel_case(app_name)), "Installing virtualenv...")
+    run_command(ssh, "virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)), "Creating a virtualenv")
+    run_command(ssh, "cd ~/{0} && . venv/bin/activate && cd config/scripts/ && sh build.sh".format(to_camel_case(app_name)), "Running build.sh...")
 
     ssh.close()
 
     return instance.public_ip_address
+
+
+def run_command(ssh, cmd, description="Running a command"):
+    logger.info(description)
+    stdin, stdout, stderr = ssh.exec_command(cmd)
+
+    error = stderr.read()
+    if error:
+        logger.error(error)
 
 
 def set_variables(app_name, staging_host, prod_host):
@@ -182,7 +191,8 @@ def set_variables(app_name, staging_host, prod_host):
     logger.info("Replacing placeholder variables in files...")
 
     find_replace("app_name", app_name if app_name else "app_name")
-    find_replace("app_name_camelcase", to_camel_case(app_name) if app_name else "AppName")
+    find_replace("app_name_camelcase", to_camel_case(
+        app_name) if app_name else "AppName")
     find_replace("staging_host", staging_host if staging_host else "")
     find_replace("prod_host", prod_host if prod_host else "")
 
