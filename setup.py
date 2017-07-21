@@ -165,6 +165,10 @@ def init_ec2_instance(app_name, git_repo_url):
 
     logger.info("Cloning the repo on the instance...")
     ssh.exec_command("git clone " + git_repo_url)
+    logger.info("Creating a venv...")
+    ssh.exec_command("python -m virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)))
+    logger.info("Running build.sh...")
+    ssh.exec_command("cd ~/{}/config/scripts/ && ./build.sh".format(to_camel_case(app_name)))
 
     ssh.close()
 
@@ -178,6 +182,7 @@ def set_variables(app_name, staging_host, prod_host):
     logger.info("Replacing placeholder variables in files...")
 
     find_replace("app_name", app_name if app_name else "app_name")
+    find_replace("app_name_camelcase", to_camel_case(app_name) if app_name else "AppName")
     find_replace("staging_host", staging_host if staging_host else "")
     find_replace("prod_host", prod_host if prod_host else "")
 
