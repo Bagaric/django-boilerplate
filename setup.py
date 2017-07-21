@@ -153,12 +153,9 @@ def set_variables(app_name, staging_host, prod_host):
     """
     print("Replacing placeholder variables in files...")
 
-    find_replace("app_name", app_name)
-
-    if staging_host:
-        find_replace("staging_host", staging_host)
-    if prod_host:
-        find_replace("prod_host", prod_host)
+    find_replace("app_name", app_name if app_name else "app_name")
+    find_replace("staging_host", staging_host if staging_host else "")
+    find_replace("prod_host", prod_host if prod_host else "")
 
 
 def find_replace(keyword, value, files=FILE_LIST):
