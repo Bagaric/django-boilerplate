@@ -165,9 +165,10 @@ def init_ec2_instance(app_name, git_repo_url):
     logger.info("Cloning the repo on the instance...")
     ssh.exec_command("git clone " + git_repo_url)
     logger.info("Creating a venv...")
-    ssh.exec_command("python -m virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)))
+    ssh.exec_command("sudo apt install virtualenv -y".format(to_camel_case(app_name)))
+    ssh.exec_command("virtualenv --python=/usr/bin/python3 ~/{}/venv".format(to_camel_case(app_name)))
     logger.info("Running build.sh...")
-    ssh.exec_command("cd ~/{}/config/scripts/ && ./build.sh".format(to_camel_case(app_name)))
+    ssh.exec_command("cd ~/{0} && . venv/bin/activate && cd config/scripts/ && sh build.sh".format(to_camel_case(app_name)))
 
     ssh.close()
 
