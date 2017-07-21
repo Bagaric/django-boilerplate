@@ -23,7 +23,6 @@ FILE_LIST = [
     'config/nginx/nginx.conf',
     'config/postgres/init.sql',
     'config/scripts/build.sh',
-    'config/scripts/deploy.sh',
     'src/env-staging',
 ]
 
