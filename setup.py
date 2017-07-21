@@ -128,7 +128,7 @@ def init_ec2_instance(app_name, git_repo_url):
     counter, connected = 0, False
     while not connected:
         counter += 1
-        print("Trying to connect to the instance: #{}".format(counter))
+        print("Trying to connect to the instance... Try #{}".format(counter))
         try:
             ssh.connect(hostname=instance.public_ip_address,
                         pkey=keypair, username="ubuntu")
@@ -136,6 +136,7 @@ def init_ec2_instance(app_name, git_repo_url):
             if counter > 5:
                 print("Unable to SSH into the instance. Exiting...")
                 sys.exit(0)
+            sleep(10)
             continue
 
         connected = True
