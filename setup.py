@@ -65,7 +65,7 @@ def init_git_repo(app_name):
             break
 
     commands = """mkdir ../{0}
-rsync -av --exclude='venv' --exclude='requirements.txt' --exclude='setup.py' * ../{0}
+rsync -av --exclude='venv' --exclude='setup_requirements.txt' --exclude='setup.py' * ../{0}
 git init
 git add -A
 git commit -m 'Initial commit'
@@ -125,13 +125,19 @@ def init_ec2_instance(app_name, git_repo_url):
         "/Users/bagaricj/keypair1.pem")
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    connected = False
+    counter, connected = 0, False
     while not connected:
+        counter += 1
+        print("Trying to connect to the instance: #{}".format(counter))
         try:
             ssh.connect(hostname=instance.public_ip_address,
                         pkey=keypair, username="ubuntu")
         except NoValidConnectionsError:
+            if counter > 5:
+                print("Unable to SSH into the instance. Exiting...")
+                sys.exit(0)
             continue
+
         connected = True
 
     print("Copying necessary files to the instance...")
