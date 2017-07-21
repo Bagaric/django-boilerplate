@@ -2,6 +2,7 @@
 import sys
 import os
 import logging
+import time
 from subprocess import call
 from getpass import getpass
 from time import sleep
@@ -39,25 +40,29 @@ logger.addHandler(handler)
 def main():
 
     app_name = input("What is the name of your app? (snake_case): ")
-    staging_host = input("Staging host or IP: ") if query_yes_no(
+    staging_cname = input("Staging host or IP: ") if query_yes_no(
         "Does your app already have a staging host?", default="no") else None
-    prod_host = input("Prod hostname or IP: ") if query_yes_no(
+    prod_cname = input("Prod hostname or IP: ") if query_yes_no(
         "Does your app already have a prod host?", default="no") else None
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
 
-    set_variables(app_name, staging_host, prod_host)
+    set_variables(app_name, staging_cname, prod_cname)
 
     if use_git:
         git_repo_url = init_git_repo(app_name)
-        ec2_instance_ip = init_ec2_instance(app_name, git_repo_url)
+        staging_host_ip = init_staging(app_name, git_repo_url)
 
-    logger.info("""
-        
-Created a new GitHub repo for the app {0}: {1}
-Created a new AWS EC2 instance at the IP address: {2}
+        if staging_cname:
+            dns_records = assign_cname_to_host(staging_cname, staging_host_ip)
 
-Finished.
-    """.format(app_name, git_repo_url, ec2_instance_ip))
+    if use_git:
+        logger.info("Created a new GitHub repo for the app {0}: {1}".format(app_name, git_repo_url))
+        logger.info("Created a staging host on: {0}".format(staging_host_ip))
+        if staging_cname:
+            logger.info("Bound the domain {0} to the staging host on {1}".format(staging_cname, staging_host_ip))
+            logger.info("Please add the following DNS servers to your domain registrar: {}".format(', '.join(dns_records)))
+
+    logger.info("Finished.")
 
 
 def init_git_repo(app_name):
@@ -95,7 +100,7 @@ git push -u origin master""".format(app_name, repo.ssh_url)
     return repo.ssh_url
 
 
-def init_ec2_instance(app_name, git_repo_url):
+def init_staging(app_name, git_repo_url):
     """
     Creates and runs an EC2 instance.
     """
@@ -152,6 +157,42 @@ def init_ec2_instance(app_name, git_repo_url):
     ssh.close()
 
     return instance.public_ip_address
+
+
+def assign_cname_to_host(cname, host_ip):
+    route53 = boto3.client('route53')
+    hosted_zone = route53.create_hosted_zone(Name=cname, CallerReference=str(time.time()))
+
+    route53.change_resource_record_sets(
+        HostedZoneId=hosted_zone.get("HostedZone")["Id"],
+        ChangeBatch={'Changes': [{
+                    'Action': 'CREATE',
+                    'ResourceRecordSet': {
+                        'Name': cname,
+                        'Type': 'A',
+                        'TTL': 300,
+                        'ResourceRecords': [{ 'Value': host_ip,}]
+                    }}]}
+    )
+
+    route53.change_resource_record_sets(
+        HostedZoneId=hosted_zone.get("HostedZone")["Id"],
+        ChangeBatch={'Changes': [{
+                    'Action': 'CREATE',
+                    'ResourceRecordSet': {
+                        'Name': 'www.*.' + cname,
+                        'Type': 'A',
+                        'TTL': 300,
+                        'ResourceRecords': [{ 'Value': host_ip,}]
+                    }}]}
+    )
+
+    resources = route53.list_resource_record_sets(HostedZoneId=hosted_zone.get("HostedZone")["Id"])
+    for resource in resources['ResourceRecordSets']:
+        if resource['Type'] == "NS":
+            dns_records = [record['Value'] for record in resource['ResourceRecords']]
+
+    return dns_records
 
 
 def open_ssh_conn(instance):
