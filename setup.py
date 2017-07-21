@@ -135,7 +135,6 @@ def init_ec2_instance(app_name, git_repo_url):
         "Waiting for the EC2 instance to start... (This may take a few minutes)")
     instance.wait_until_running()
 
-
     ssh = open_ssh_conn(instance)
     logger.info("Copying necessary files to the instance...")
     sftp = ssh.open_sftp()
@@ -144,7 +143,7 @@ def init_ec2_instance(app_name, git_repo_url):
     run_command(ssh, "chmod 0400 ~/.ssh/id_rsa*")
     run_command(ssh, "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
     run_command(ssh, "git clone " + git_repo_url, "Cloning the repo on the instance...")
-    run_command(ssh, "sudo apt-get update && sudo apt install virtualenv make linux-image-extra-virtual apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo apt-key fingerprint 0EBFCD88 && sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo groupadd docker && sudo usermod -aG docker $USER", "Installing dependencies...")
+    run_command(ssh, "sudo apt-get update && sudo apt install virtualenv make linux-image-extra-virtual apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo apt-key fingerprint 0EBFCD88 && sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo usermod -aG docker $USER && exit", "Installing dependencies...")
     ssh.close()
 
     ssh = open_ssh_conn(instance)

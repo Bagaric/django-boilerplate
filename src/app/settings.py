@@ -13,6 +13,8 @@ SECRET_KEY = '7-6nmls$axqh40hh&om08!2kzi745gnp*64cgbpf@d-%_q8(ou'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'web']
+
 STATIC_ROOT = '../static/'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = (
