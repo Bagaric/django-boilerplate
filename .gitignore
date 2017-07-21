@@ -3,4 +3,4 @@ venv
 src/staticfiles
 src/db.sqlite3
 src/app/local_settings.py
-setup.py
+setup.log

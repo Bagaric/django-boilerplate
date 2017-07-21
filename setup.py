@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
+import logging
 from subprocess import call
 from getpass import getpass
 from time import sleep
@@ -26,6 +27,14 @@ FILE_LIST = [
     'src/env-staging',
 ]
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+handler = logging.FileHandler('setup.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setLevel(logging.INFO)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 def main():
 
@@ -40,16 +49,22 @@ def main():
 
     if use_git:
         git_repo_url = init_git_repo(app_name)
-        init_ec2_instance(app_name, git_repo_url)
+        ec2_instance_ip = init_ec2_instance(app_name, git_repo_url)
 
-    print("Finished.")
+    logger.info("""
+        
+Created a new GitHub repo for the app {0}: {1}
+Created a new AWS EC2 instance at the IP address: {2}
+
+Finished.
+    """.format(app_name, git_repo_url, ec2_instance_ip))
 
 
 def init_git_repo(app_name):
     """
     Initializes the GitHub repo for the app.
     """
-    print("Creating the GitHub repo...")
+    logger.info("Creating the GitHub repo...")
 
     while True:
         try:
@@ -60,7 +75,7 @@ def init_git_repo(app_name):
             user = github.get_user()
             repo = user.create_repo(to_camel_case(app_name))
         except BadCredentialsException:
-            print("Wrong username/password. Try again.")
+            logger.info("Wrong username/password. Try again.")
         else:
             break
 
@@ -84,7 +99,7 @@ def init_ec2_instance(app_name, git_repo_url):
     """
     Creates and runs an EC2 instance.
     """
-    print("Creating an EC2 instance...")
+    logger.info("Creating an EC2 instance...")
 
     ec2 = boto3.resource('ec2')
     ec2.create_instances(
@@ -116,10 +131,10 @@ def init_ec2_instance(app_name, git_repo_url):
                 instance = i
                 break
 
-    print("Waiting for the EC2 instance to start... (This may take a few minutes)")
+    logger.info("Waiting for the EC2 instance to start... (This may take a few minutes)")
     instance.wait_until_running()
 
-    print("SSHing into the instance...")
+    logger.info("SSHing into the instance...")
     ssh = SSHClient()
     keypair = paramiko.RSAKey.from_private_key_file(
         "/Users/bagaricj/keypair1.pem")
@@ -128,37 +143,39 @@ def init_ec2_instance(app_name, git_repo_url):
     counter, connected = 0, False
     while not connected:
         counter += 1
-        print("Trying to connect to the instance... Try #{}".format(counter))
+        logger.info("Trying to connect to the instance... Try #{}".format(counter))
         try:
             ssh.connect(hostname=instance.public_ip_address,
                         pkey=keypair, username="ubuntu")
         except NoValidConnectionsError:
             if counter > 5:
-                print("Unable to SSH into the instance. Exiting...")
+                logger.info("Unable to SSH into the instance. Exiting...")
                 sys.exit(0)
             sleep(10)
             continue
 
         connected = True
 
-    print("Copying necessary files to the instance...")
+    logger.info("Copying necessary files to the instance...")
     sftp = ssh.open_sftp()
     sftp.put("/Users/bagaricj/.ssh/id_rsa", "/home/ubuntu/.ssh/id_rsa")
     sftp.put("/Users/bagaricj/.ssh/id_rsa.pub", "/home/ubuntu/.ssh/id_rsa.pub")
     ssh.exec_command("chmod 0400 ~/.ssh/id_rsa*")
     ssh.exec_command("echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
 
-    print("Cloning the repo on the instance...")
+    logger.info("Cloning the repo on the instance...")
     ssh.exec_command("git clone " + git_repo_url)
 
     ssh.close()
+
+    return instance.public_ip_address
 
 
 def set_variables(app_name, staging_host, prod_host):
     """
     Sets all variables in the project.
     """
-    print("Replacing placeholder variables in files...")
+    logger.info("Replacing placeholder variables in files...")
 
     find_replace("app_name", app_name if app_name else "app_name")
     find_replace("staging_host", staging_host if staging_host else "")
