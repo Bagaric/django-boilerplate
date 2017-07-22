@@ -40,8 +40,8 @@ logger.addHandler(handler)
 def main():
 
     app_name = input("What is the name of your app? (snake_case): ")
-    staging_cname = input("Staging host or IP: ") if query_yes_no(
-        "Does your app already have a staging host?", default="no") else None
+    staging_cname = input("Domain name: ") if query_yes_no(
+        "Does your app already have a registered domain name?", default="no") else None
     prod_cname = input("Prod hostname or IP: ") if query_yes_no(
         "Does your app already have a prod host?", default="no") else None
     use_git = query_yes_no("Do you want to initialize a GitHub repo?")
@@ -85,7 +85,7 @@ def init_git_repo(app_name):
             break
 
     commands = """mkdir ../{0}
-rsync -av --exclude='venv' --exclude='setup_requirements.txt' --exclude='setup.py' * ../{0}
+rsync -av --exclude='venv' --exclude='setup*' * ../{0}
 git init
 git add -A
 git commit -m 'Initial commit'
@@ -148,7 +148,17 @@ def init_staging(app_name, git_repo_url):
     run_command(ssh, "chmod 0400 ~/.ssh/id_rsa*")
     run_command(ssh, "echo -e 'Host github.com\n    StrictHostKeyChecking no\n' >> ~/.ssh/config")
     run_command(ssh, "git clone " + git_repo_url, "Cloning the repo on the instance...")
-    run_command(ssh, "sudo apt-get update && sudo apt install virtualenv make linux-image-extra-virtual apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo apt-key fingerprint 0EBFCD88 && sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo usermod -aG docker $USER && exit", "Installing dependencies...")
+    run_command(ssh, "sudo apt-get update && \
+        sudo apt install virtualenv make linux-image-extra-virtual apt-transport-https ca-certificates curl software-properties-common -y && \
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
+        sudo apt-key fingerprint 0EBFCD88 && \
+        sudo add-apt-repository \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" && \
+        sudo apt update && \
+        sudo apt install docker-ce -y && \
+        sudo systemctl enable docker && \
+        sudo usermod -aG docker $USER && \
+        exit", 
+    "Installing dependencies...")
     ssh.close()
 
     ssh = open_ssh_conn(instance)
