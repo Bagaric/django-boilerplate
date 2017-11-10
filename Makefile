@@ -11,8 +11,8 @@ help:
 	@echo "backup-db-production - backs up the production database into a folder ~/backup on the server"
 	@echo "deploy-production - sync local code to production server, rebuild Docker image and reload on production server"
 
-STAGING_HOST={$staging_host}
-PRODUCTION_HOST={$prod_host}
+STAGING_HOST=examplestaging.com
+PRODUCTION_HOST=exampleprod.com
 SSH_KEY=~/keypair1.pem
 
 build-local:

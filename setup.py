@@ -12,7 +12,7 @@ from github import Github
 from github.GithubException import BadCredentialsException
 from pybitbucket.bitbucket import Client
 from pybitbucket.auth import BasicAuthenticator
-from pybitbucket.repository import Repository
+from pybitbucket.repository import Repository, RepositoryPayload
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import NoValidConnectionsError
 import paramiko
@@ -95,15 +95,20 @@ def init_git_repo(app_name):
 
             # If the user chose Bitbucket
             elif provider == "2":
-                bitbucket = Client(
+                user = Client(
                     BasicAuthenticator(
                         git_username,
                         git_password,
                         git_email))
+                payload = RepositoryPayload()
+                payload.add_name(to_camel_case(app_name))
+                payload.add_owner(user)
+                payload.add_is_private(True)
                 repo = Repository.create(
+                    payload=payload,
                     repository_name=to_camel_case(app_name),
-                    owner=bitbucket,
-                    client=bitbucket)
+                    owner=user,
+                    client=user)
 
         except BadCredentialsException:
             logger.info("Wrong username/password. Try again.")

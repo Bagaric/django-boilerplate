@@ -1,4 +1,4 @@
-# {$app_name}
+# test_app
 
 Deployment instructions and notes
 

@@ -1,4 +1,4 @@
-DOMAIN={$staging_host}
+DOMAIN=examplestaging.com
 DB_ENGINE=django.db.backends.postgresql_psycopg2
 DB_NAME=snake_case
 DB_USER=snake_case
