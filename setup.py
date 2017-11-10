@@ -10,7 +10,9 @@ from time import sleep
 import boto3
 from github import Github
 from github.GithubException import BadCredentialsException
-from pybitbucket import Client, BasicAuthenticator, Repository
+from pybitbucket.bitbucket import Client
+from pybitbucket.auth import BasicAuthenticator
+from pybitbucket.repository import Repository
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import NoValidConnectionsError
 import paramiko
@@ -99,10 +101,10 @@ def init_git_repo(app_name):
                         git_password,
                         git_email))
                 repo = Repository.create(
-                    name=to_camel_case(app_name),
+                    repository_name=to_camel_case(app_name),
                     owner=bitbucket,
                     client=bitbucket)
-            
+
         except BadCredentialsException:
             logger.info("Wrong username/password. Try again.")
         else:
