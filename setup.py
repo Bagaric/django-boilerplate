@@ -10,6 +10,7 @@ from time import sleep
 import boto3
 from github import Github
 from github.GithubException import BadCredentialsException
+from pybitbucket import Client, BasicAuthenticator, Repository
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import NoValidConnectionsError
 import paramiko
@@ -44,7 +45,7 @@ def main():
         "Does your app already have a registered domain name?", default="no") else None
     prod_cname = input("Prod hostname or IP: ") if query_yes_no(
         "Does your app already have a prod host?", default="no") else None
-    use_git = query_yes_no("Do you want to initialize a GitHub repo?")
+    use_git = query_yes_no("Do you want to initialize a Git repo?")
 
     set_variables(app_name, staging_cname, prod_cname)
 
@@ -69,20 +70,44 @@ def init_git_repo(app_name):
     """
     Initializes the GitHub repo for the app.
     """
-    logger.info("Creating the GitHub repo...")
+
+    provider = None
+    while provider not in ("1", "2"):
+        provider = input("""Choose your git provider:
+1 - GitHub
+2 - BitBucket
+:""")
 
     while True:
         try:
-            github_username = input("GitHub username: ")
-            github_password = getpass(prompt="GitHub password: ")
+            git_username = input("Git username: ")
+            git_password = getpass(prompt="Git password: ")
+            git_email = input("Git email: ")
 
-            github = Github(github_username, github_password)
-            user = github.get_user()
-            repo = user.create_repo(to_camel_case(app_name))
+            # If the user chose GitHub
+            if provider == "1":
+                logger.info("Creating a GitHub repo...")
+                github = Github(git_username, git_password)
+                user = github.get_user()
+                repo = user.create_repo(to_camel_case(app_name))
+
+            # If the user chose Bitbucket
+            elif provider == "2":
+                bitbucket = Client(
+                    BasicAuthenticator(
+                        git_username,
+                        git_password,
+                        git_email))
+                repo = Repository.create(
+                    name=to_camel_case(app_name),
+                    owner=bitbucket,
+                    client=bitbucket)
+            
         except BadCredentialsException:
             logger.info("Wrong username/password. Try again.")
         else:
             break
+
 
     commands = """mkdir ../{0}
 rsync -av --exclude='venv' --exclude='setup*' * ../{0}
@@ -102,7 +127,7 @@ git push -u origin master""".format(app_name, repo.ssh_url)
 
 def init_staging(app_name, git_repo_url):
     """
-    Creates and runs an EC2 instance.
+    Creates and runs a EC2 instance.
     """
     logger.info("Creating an EC2 instance...")
 
